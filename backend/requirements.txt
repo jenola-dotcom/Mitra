@@ -5,14 +5,12 @@ python-dotenv==1.0.1
 google-generativeai==0.8.3
 httpx==0.27.2
 
-# --- RAG + FAISS (backend/knowledge/ PDFs) ---
+# --- RAG + FAISS ---
 pypdf==4.3.1
-# Unpinned (>=): faiss-cpu doesn't publish wheels for every Python version
-# under every exact version number — 1.8.0 (originally pinned here) isn't
-# available for newer Python releases (confirmed: a user on Python 3.13
-# only had 1.12.0+ offered by pip). Newer faiss-cpu wheels declare their
-# own correct numpy requirement, so numpy is left unpinned too — pip will
-# resolve a compatible pair automatically.
 faiss-cpu>=1.8.0
-sentence-transformers==6.1.0
 numpy
+sentence-transformers==6.1.0
+
+# CPU-only PyTorch for Render
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.9.1+cpu
