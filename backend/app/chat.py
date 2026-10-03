@@ -726,7 +726,12 @@ def chat(req: ChatRequest, request: Request):
         found = []
         if not _is_greeting(req.message):
             try:
+                _t0 = time.monotonic()
+                logger.info("[RAG] retrieve() starting | query=%r", req.message[:80])
                 found = rag_retriever.retrieve(req.message, top_k=3)
+                logger.info("[RAG] retrieve() finished in %.2fs | chunks=%d | scores=%s",
+                            time.monotonic() - _t0, len(found),
+                            [(c.get("pdf_name"), c.get("page_number"), round(c.get("score", 0), 3)) for c in found])
             except rag_retriever.RagUnavailableError as e:
                 logger.warning("[CHAT] RAG unavailable (%s) -> treating as no relevant PDF", e)
             except Exception:
@@ -841,11 +846,13 @@ def _warmup():
 
 
 def _warm_rag():
+    _t0 = time.monotonic()
+    logger.info("[RAG] warm-up starting (loads embedding model + FAISS index)")
     try:
-        rag_retriever.retrieve("warm up", top_k=1)
-        logger.info("[RAG] warmed up")
+        found = rag_retriever.retrieve("warm up", top_k=1)
+        logger.info("[RAG] warmed up in %.1fs | test chunks=%d", time.monotonic() - _t0, len(found))
     except Exception as e:
-        logger.warning("[RAG] warm-up skipped: %s", e)
+        logger.exception("[RAG] warm-up skipped after %.1fs: %s", time.monotonic() - _t0, e)
 
 
 import threading as _threading

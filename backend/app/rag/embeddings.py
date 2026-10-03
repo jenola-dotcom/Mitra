@@ -23,10 +23,27 @@ EMBEDDING_MODEL in .env — no other code needs to change.
 """
 from __future__ import annotations
 
+import logging
 import os
 import threading
+import time
 
 import numpy as np
+
+logger = logging.getLogger("uvicorn.error")  # same logger as chat.py -> shows in Render logs
+
+
+def _rss_mb() -> str:
+    """Current process memory (Linux/Render) - helps spot out-of-memory kills."""
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return f"{int(line.split()[1]) / 1024:.0f} MB"
+    except Exception:
+        pass
+    return "n/a"
+
 
 EMBEDDING_MODEL_NAME = os.getenv(
     "EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -50,14 +67,23 @@ def _get_model():
         return _model
     if _load_error is not None:
         raise EmbeddingUnavailableError(_load_error)
+    if _model_lock.locked():
+        logger.info("[EMBED] another thread is loading the embedding model; this request is waiting for it")
     with _model_lock:
         if _model is not None:
             return _model
+        t0 = time.monotonic()
         try:
+            logger.info("[EMBED] loading SentenceTransformer model '%s' (process memory now: %s)",
+                        EMBEDDING_MODEL_NAME, _rss_mb())
             from sentence_transformers import SentenceTransformer
             _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
+            logger.info("[EMBED] model loaded OK in %.1fs | dimension=%s | process memory now: %s",
+                        time.monotonic() - t0, _model.get_sentence_embedding_dimension(), _rss_mb())
             return _model
         except Exception as e:  # broad: network error, missing package, corrupt cache, etc.
+            logger.exception("[EMBED] FAILED to load embedding model '%s' after %.1fs (memory: %s)",
+                             EMBEDDING_MODEL_NAME, time.monotonic() - t0, _rss_mb())
             _load_error = (
                 f"Could not load embedding model '{EMBEDDING_MODEL_NAME}': {e}. "
                 "First run needs internet access to download model weights once; "
