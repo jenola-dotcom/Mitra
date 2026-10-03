@@ -1,0 +1,9 @@
+{
+  "pdf_files_processed": [
+    "Revamped Operational Guidelines_17th August 2020.pdf"
+  ],
+  "pages_extracted": 157,
+  "chunks_indexed": 721,
+  "extraction_issues": [],
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+}
