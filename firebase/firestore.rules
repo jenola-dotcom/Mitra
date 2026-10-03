@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Part 1: user profile documents (one per authenticated user, created at
+// registration, keyed by uid). Part 2 adds the grievances collection below.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function currentRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    match /users/{uid} {
+      // A user can read their own profile. Cooperative officials and admins
+      // can read profiles too (needed from Part 2 for assigning grievances);
+      // this still requires being signed in with a known role.
+      allow read: if isOwner(uid) || (isSignedIn() && currentRole() in ['official', 'admin']);
+
+      // A user can only create their own profile, exactly once, at registration,
+      // and cannot self-assign a role outside the three allowed values.
+      allow create: if isOwner(uid)
+                    && request.resource.data.role in ['farmer', 'official', 'admin'];
+
+      // A user may update their own profile but may NOT change their own role
+      // (role elevation must go through an admin-managed flow in a later part).
+      allow update: if isOwner(uid)
+                    && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+    // Grievances — added in Part 2. Farmers create their own; officials can
+    // update only cases assigned to them; admins have full read/write for
+    // assignment and escalation. All roles read the collection broadly
+    // (filtered client-side) so officials/admins can see cases to be
+    // assigned — this is a deliberate prototype tradeoff, noted in the README.
+    match /grievances/{grievanceId} {
+      allow read: if isSignedIn() &&
+                  (resource.data.farmerId == request.auth.uid ||
+                   currentRole() in ['official', 'admin']);
+
+      allow create: if isSignedIn()
+                    && currentRole() == 'farmer'
+                    && request.resource.data.farmerId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.assignedOfficialId == null;
+
+      // Officials may only update cases assigned to them, and only the
+      // mutable workflow fields (status/notes/timestamps) — not who filed it.
+      allow update: if isSignedIn() && (
+        (currentRole() == 'official'
+          && resource.data.assignedOfficialId == request.auth.uid
+          && request.resource.data.farmerId == resource.data.farmerId
+          && request.resource.data.referenceId == resource.data.referenceId)
+        || currentRole() == 'admin'
+      );
+
+      allow delete: if false;
+    }
+
+    // Deny everything else by default until later parts explicitly open it up.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

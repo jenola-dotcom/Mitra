@@ -1,0 +1,18 @@
+# Python
+backend/venv/
+backend/.env
+__pycache__/
+backend/__pycache__/
+*.py[cod]
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.local
+
+# Logs / OS
+*.log
+.DS_Store.firebase/
+.firebase/

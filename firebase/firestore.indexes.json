@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "grievances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "farmerId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "grievances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedOfficialId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
